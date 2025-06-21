@@ -1,0 +1,52 @@
+#assembly to binary 
+
+1. first we call/invoke gcc from clear
+        sudo apt install -y gcc-riscv64-unknown-elf qemu-system-misc gdb-multiarch
+        -gcc is the one which calls the linker, compiler, assembly etc utilities.
+
+2. then pass few options, riscv64-unknown-elf-gcc -O0 -ggdb -nostdlib -march=rv32i -mabi=ilp32 -Wl,-Tmain.ld main.s -o main.elf
+
+        - O0 , we tell the gcc to not optimise the code by itself.
+
+        - ggdb , asking gcc to add more information to the binary which would be created, so that gdb can understand source code related details.
+        - nostdlib, asking the compiler to not include the standard library.
+
+        - march = rv32i , telling the gcc that the architecture that we are compiling for is riscv 32 bit integer instruction set.
+                    -whatever instruction that would be generated will only be from the subset of integer instructions.
+
+        - -mabi=ilp32 - if there is once file calling another file in the C language, we use this to tell gcc how the information has to be passed between them.
+
+        - Wl - to tell the gcc that whatever we pass after the comma immediately (-Tmain.ld) is for the Linker.
+
+        -main.s - our assembly file that we want to execute.
+
+        - -o main.elf, chagning the name of a.out to main.elf.
+
+3. qemu-system-riscv32 -S -M virt -nographic -bios none -kernel main.elf -gdb tcp::1234
+
+        - qemu-system-riscv32, we want the call the qemu system.
+
+        - -S, As the cpu starts, don't execute anything. Stop it at the first instruction without executing it.
+        - -M, specification of the machine that it needs to act like.
+        - virt, vitual machine that qemu by default implements.
+        - -nongraphic -bios none, we don't want any graphics, we don't want bios.
+        - -kernel main.elf - telling qemu to take the main.elf file and treat it like the executable that it is supposed to execute and go ahead with the execution.
+        - -gdb tcp::1234, telling the qemu to provide a tunnel so that gdb can connect with it.
+
+4. gdb-multiarch main.elf -ex "target remote localhost:1234" -ex "break _start" -ex "continue" -q
+
+        -telling the gdb multiarchitecture that we are going to start a debug session based on main.elf and asking it to use the reference from this file. 
+        -And execute -ex "target remote localhost:1234", this connects with the qemu on the port 1234.
+        --ex "break _start", setting break points at the start.
+        
+5. main.elf has the debug information which the gdb used and gdb figures out that main.s is where the source code is because of the debug that main.elf has. The elf file has the binary code and some meta data for gdb.
+Now, we want to trip away the meta data(debug info) and just keep the binary(just the instruction).
+        -riscv64-unknown-elf-objcopy -O binary main.elf main.bin
+                - output in the binary format by reading main.elf and create a file main.binary which has only has the instructions lined up.
+        -print the binary in the raw bits format
+                -xxd -e -c 4 -g 4 main.bin 
+
+6. rm *.out *.bin *.elf, remove anything that has .out, .bin and .elf
+
+7. make as a utility/tool goes looking for Makefile to go search targets. //Read more about make.
+
